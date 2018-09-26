@@ -21,7 +21,7 @@ def test_context(t, inp: (Parser, str), result, remaining: str):
 
 class ParserTest(unittest.TestCase):
     def test_map(self):
-        test_context(self, (digit().map(eval), '123'), Success(1), '23')
+        test_context(self, (digit().map(int), '123'), Success(1), '23')
         test_context(self, (alpha().map(lambda x: x.upper()), 'abc'), Success('A'), 'bc')
 
     def test_bind(self):
@@ -33,7 +33,6 @@ class ParserTest(unittest.TestCase):
                                          .flatmap(lambda c2: digit()
                                                   .flatmap(lambda c3:
                                                            just(int(c1 + c2 + c3))))), '12a4'), ParseError, 'a4')
-
 
     def test_then(self):
         test_context(self, (digit().then(digit()), '1234'), Success('2'), '34')
@@ -59,6 +58,10 @@ class ParserTest(unittest.TestCase):
     def test_label(self):
         test_context(self, (label(char('a'), '777'), 'abc'), Success('a'), 'bc')
         test_context(self, (label(char('b'), '777'), 'abc'), ParseError('777'), 'abc')
+
+    def test_label2(self):
+        test_context(self, (char('a').label('777'), 'abc'), Success('a'), 'bc')
+        test_context(self, (char('b').label('777'), 'abc'), ParseError('777'), 'abc')
 
     def test_space(self):
         test_context(self, (space(), '  7'), Success(' '), ' 7')
@@ -87,3 +90,32 @@ class ParserTest(unittest.TestCase):
 
     if __name__ == '__main__':
         unittest.main()
+
+
+class LocatedTextTest(unittest.TestCase):
+    test_str = '01234\n54321\nabcde'
+
+    def test_row(self):
+        self.assertEqual(LocatedText(self.test_str, 0).row(), 1)
+        self.assertEqual(LocatedText(self.test_str, 5).row(), 1)
+        self.assertEqual(LocatedText(self.test_str, 6).row(), 2)
+        self.assertEqual(LocatedText(self.test_str, 12).row(), 3)
+        self.assertEqual(LocatedText(self.test_str, 16).row(), 3)
+
+    def test_col(self):
+        self.assertEqual(LocatedText(self.test_str, 0).col(), 1)
+        self.assertEqual(LocatedText(self.test_str, 4).col(), 5)
+        self.assertEqual(LocatedText(self.test_str, 5).col(), 6)
+        self.assertEqual(LocatedText(self.test_str, 6).col(), 1)
+        self.assertEqual(LocatedText(self.test_str, 13).col(), 2)
+
+    def test_current_line(self):
+        self.assertEqual(LocatedText(self.test_str, 0).current_line(), '01234')
+        self.assertEqual(LocatedText(self.test_str, 6).current_line(), '54321')
+        self.assertEqual(LocatedText(self.test_str, 16).current_line(), 'abcde')
+
+    def test_column_caret(self):
+        self.assertEqual(LocatedText(self.test_str, 0).column_caret(), '^')
+        self.assertEqual(LocatedText(self.test_str, 6).column_caret(), '^')
+        self.assertEqual(LocatedText(self.test_str, 16).column_caret(), '    ^')
+        self.assertEqual(LocatedText(self.test_str, 11).column_caret(), '     ^')

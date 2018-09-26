@@ -15,21 +15,44 @@ class LocatedText:
     __str = ...  # type: str
     __loc = ...  # type: int
 
-    def __init__(self, inp: str):
+    def __init__(self, inp: str, loc: int = 0):
+        assert loc <= len(inp)
         self.__str = inp
-        self.__loc = 0
+        self.__loc = loc
 
     def remaining(self) -> str:
         return self.__str[self.__loc:]
 
     def advance_one(self) -> None:
+        assert not self.isEOF()
         self.__loc += 1
 
     def isEOF(self) -> bool:
         return self.__loc == len(self.__str)
 
+    def row(self) -> int:
+        return self.__str[0: self.__loc].count('\n') + 1
+
+    def col(self) -> int:
+        l = self.__str[0: self.__loc].rfind('\n')
+        if (l == -1):
+            return self.__loc + 1
+        else:
+            return self.__loc - l
+
+    def current_line(self) -> str:
+        return self.__str.splitlines()[self.row() - 1]
+
+    def column_caret(self) -> str:
+        return (" " * (self.col() - 1)) + "^"
+
     def __repr__(self):
-        return self.__str[self.__loc:]
+        return str({'loc': self.__loc, 'str': self.__str})
+
+    def __str__(self):
+        return '({},{})'.format(self.row(), self.col()) + '\n' + \
+               self.current_line() + '\n' + \
+               self.column_caret()
 
 
 """
@@ -75,7 +98,7 @@ class Parser:
         """
         Parser[A] -> (A -> Parser[B]) -> Parser[B]
 
-        @:see : https://en.wikipedia.org/wiki/Monad_(functional_programming)
+        :see : https://en.wikipedia.org/wiki/Monad_(functional_programming)
         """
 
         def inner(loc: LocatedText) -> State:
@@ -96,6 +119,8 @@ class Parser:
     def __rshift__(self, func):
         return self.then(func)
 
+    def label(self, msg):
+        return label(self, msg)
 
 
 def run_parser(parser: Parser, inp: str) -> State:
@@ -235,5 +260,11 @@ def none_of(chrs: str) -> Parser:
     return label(satisfy(lambda c: c not in chrs), 'Excepted: none of ' + ', '.join(chrs))
 
 
+# def many(parser: Parser) -> Parser:
+#
+#
+
 if __name__ == '__main__':
-    print(run_parser(one_of('{}[]'), '${a}'))
+    res = run_parser(one_of('{}[]'), '${a}')
+    print(res)
+    print(res.text)
