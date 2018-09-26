@@ -24,6 +24,13 @@ class ParserTest(unittest.TestCase):
         test_context(self, (digit().map(int), '123'), Success(1), '23')
         test_context(self, (alpha().map(lambda x: x.upper()), 'abc'), Success('A'), 'bc')
 
+    def test_or(self):
+        test_context(self, ((digit() >> digit()) | alpha(), '1abc'), Success('a'), 'bc')
+        test_context(self, ((digit() >> digit()) | alpha(), '12abc'), Success('2'), 'abc')
+        test_context(self, ((digit() >> digit()) | alpha(), 'abc'), Success('a'), 'bc')
+        test_context(self, ((digit() >> digit()) | alpha(), '123abc'), Success('2'), '3abc')
+        test_context(self, (string('134') | string('23'), '123abc'), Success('23'), 'abc')
+
     def test_bind(self):
         test_context(self, (digit().flatmap(lambda c1: digit()
                                             .flatmap(lambda c2: digit()
@@ -40,6 +47,10 @@ class ParserTest(unittest.TestCase):
         test_context(self, (digit() >> digit(), '1234'), Success('2'), '34')
         test_type(self, (digit() >> alpha(), '1234'), ParseError, '234')
 
+    def test_pleft(self):
+        test_context(self, (char('a') << char(')'), 'a)bc'), Success('a'), 'bc')
+        test_context(self, (char('(') >> char('a') << char(')'), '(a)bc'), Success('a'), 'bc')
+
     def test_satisfy(self):
         test_context(self, (satisfy(lambda c: c == 'a'), 'abc'), Success('a'), 'bc')
         test_type(self, (satisfy(lambda c: c == 'b'), 'abc'), ParseError, 'abc')
@@ -54,6 +65,10 @@ class ParserTest(unittest.TestCase):
         test_context(self, (char('['), '[abc]'), Success('['), 'abc]')
         test_context(self, (char('9'), '987654321'), Success('9'), '87654321')
         test_type(self, (char('a'), '[abc]'), ParseError, '[abc]')
+
+    def test_string(self):
+        test_context(self, (string('abcde'), 'abcdef'), Success('abcde'), 'f')
+        test_type(self, (string('abcde'), 'abcdf'), ParseError, 'f')
 
     def test_label(self):
         test_context(self, (label(char('a'), '777'), 'abc'), Success('a'), 'bc')
@@ -87,6 +102,26 @@ class ParserTest(unittest.TestCase):
     def test_none_of(self):
         test_context(self, (none_of('{}[]'), '${a}'), Success('$'), '{a}')
         test_type(self, (none_of('{}[]'), '[]'), ParseError, '[]')
+
+    def test_many(self):
+        test_context(self, (many(digit()), '123abc'), Success(['1', '2', '3']), 'abc')
+        test_context(self, (many(space()) >> digit(), '  \t\n12'), Success('1'), '2')
+        test_context(self, (many(space()) >> digit(), '12'), Success('1'), '2')
+
+    def test_many1(self):
+        test_context(self, (many1(digit()), '123abc'), Success(['1', '2', '3']), 'abc')
+        test_type(self, (many1(space()) >> digit(), '12'), ParseError, '12')
+
+    def test_protect(self):
+        test_context(self, (protect(spaces()), '   123'), Success([' ', ' ', ' ']), '123')
+        test_context(self, (protect(string('12')) | string('13'), '133'), Success('13'), '3')
+
+    def test_skip(self):
+        test_context(self, (skip(spaces()) >> digit(), '   123'), Success('1'), '23')
+        test_context(self, (skip(spaces()) >> digit(), '123'), Success('1'), '23')
+
+    def test_skip_many(self):
+        test_context(self, (skip_many(digit()) >> string('abc'), '9876abcd'), Success('abc'), 'd')
 
     if __name__ == '__main__':
         unittest.main()

@@ -1,39 +1,61 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
+
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
 __see__ = 'http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf'
 
 from collections import namedtuple
 from typing import Callable
+import copy
 
 
 class LocatedText:
     """
-    字符串解析到的位置
+    包含待解析字符串，以及字符串解析到的位置
     """
     __str = ...  # type: str
     __loc = ...  # type: int
 
     def __init__(self, inp: str, loc: int = 0):
-        assert loc <= len(inp)
+        if loc > len(inp):
+            raise RuntimeError('Invalid argument')
         self.__str = inp
         self.__loc = loc
 
+    def __copy__(self):
+        return LocatedText(self.__str, self.__loc)
+
     def remaining(self) -> str:
+        """
+        :return str: 剩余未解析的字符串
+        """
         return self.__str[self.__loc:]
 
     def advance_one(self) -> None:
-        assert not self.isEOF()
+        """
+        :return None: 成功解析一个字符后，负责前进一位
+        """
+        if self.isEOF():
+            raise RuntimeError('Parsing has completed')
         self.__loc += 1
 
     def isEOF(self) -> bool:
+        """
+        :return bool: 字符串是否已经解析完成
+        """
         return self.__loc == len(self.__str)
 
     def row(self) -> int:
+        """
+        :return int: 返回目前解析到的行数，以 1 开始计数
+        """
         return self.__str[0: self.__loc].count('\n') + 1
 
     def col(self) -> int:
+        """
+        :return int: 返回目前解析到的列数，以 1 开始计数
+        """
         l = self.__str[0: self.__loc].rfind('\n')
         if (l == -1):
             return self.__loc + 1
@@ -41,15 +63,37 @@ class LocatedText:
             return self.__loc - l
 
     def current_line(self) -> str:
+        """
+        :return str: 返回所解析到的完整行，以便输出错误信息
+        例：
+            '123\n456\n789'，若解析到'5'，则返回'456'
+        """
         return self.__str.splitlines()[self.row() - 1]
 
     def column_caret(self) -> str:
+        """
+        :return str: 返回指示当前所解析字符的指针，以便输出错误信息
+        例：
+            '123\n456\n789'，若解析到'5'，则返回' ^'
+            最终信息将显示：
+            >> 456
+            >>  ^
+        """
         return (" " * (self.col() - 1)) + "^"
 
     def __repr__(self):
         return str({'loc': self.__loc, 'str': self.__str})
 
     def __str__(self):
+        """
+        :return str: 返回友好的解析位置信息
+        例：
+            '123\n456\n789'，若解析到'5'
+            最终信息将显示：
+            >> (2,2)
+            >> 456
+            >>  ^
+        """
         return '({},{})'.format(self.row(), self.col()) + '\n' + \
                self.current_line() + '\n' + \
                self.column_caret()
@@ -69,12 +113,35 @@ Success = namedtuple('Success', ['value'])
 """
 ParseError = namedtuple('ParseError', ['msg'])
 
-"""
-# State(result: T, text: LocatedText)
 
-解析后返回的状态，result的类型是(Success | ParseError)
-"""
-State = namedtuple('State', ['result', 'text'])
+class State:
+    """
+    # State(result: T, text: LocatedText)
+
+    解析后返回的状态，result的类型是(Success | ParseError)
+    """
+
+    def __init__(self, result, text: LocatedText):
+        self.result = result
+        self.text = text
+
+    def is_successful(self):
+        return isinstance(self.result, Success)
+
+    def __repr__(self):
+        return 'State({}, {})'.format(
+            'result=' + repr(self.result),
+            'text=' + repr(self.text)
+        )
+
+    def __str__(self):
+        if self.is_successful():
+            return 'Parsing succeed'
+        else:
+            return '{}\n{}'.format(
+                self.result.msg,
+                self.text
+            )
 
 
 class Parser:
@@ -94,6 +161,20 @@ class Parser:
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
 
+    def __or__(self, other):
+        """
+        消耗or
+        """
+
+        def inner(loc: LocatedText) -> State:
+            state = self.fn(loc)
+            if state.is_successful():
+                return state
+            else:
+                return other.fn(state.text)
+
+        return Parser(inner)
+
     def flatmap(self, func):
         """
         Parser[A] -> (A -> Parser[B]) -> Parser[B]
@@ -103,7 +184,7 @@ class Parser:
 
         def inner(loc: LocatedText) -> State:
             state = self.fn(loc)
-            if isinstance(state.result, Success):
+            if state.is_successful():
                 return func(state.result.value).fn(state.text)
             else:
                 return state
@@ -116,8 +197,11 @@ class Parser:
     def then(self, parser):
         return self.flatmap(lambda _: parser)
 
-    def __rshift__(self, func):
-        return self.then(func)
+    def __rshift__(self, parser):
+        return self.then(parser)
+
+    def __lshift__(self, parser):
+        return self.flatmap(lambda x: parser.flatmap(lambda _: just(x)))
 
     def label(self, msg):
         return label(self, msg)
@@ -167,29 +251,12 @@ def label(parser: Parser, msg: str) -> Parser:
 
     def inner(loc: LocatedText) -> State:
         state = parser.fn(loc)
-        if isinstance(state.result, Success):
+        if state.is_successful():
             return state
         else:
             return State(ParseError(msg), state.text)
 
     return Parser(inner)
-
-
-# def label1(msg: str):
-#     def decorator(func):
-#         def wrapper(*args, **kwargs):
-#             def inner(loc: LocatedText) -> State:
-#                 state = func(*args, **kwargs).fn(loc)
-#                 if isinstance(state.result, Success):
-#                     return state
-#                 else:
-#                     return State(ParseError(msg), state.text)
-#
-#             return Parser(inner)
-#
-#         return wrapper
-#
-#     return decorator
 
 
 def just(v) -> Parser:
@@ -212,7 +279,17 @@ def char(x: str) -> Parser:
     :param x: 需要解析的字符
     :return Parser: 解析此字符的Parser
     """
+    assert len(x) == 1
     return label(satisfy(lambda c: c == x), 'Excepted: {}'.format(x))
+
+
+def string(s: str) -> Parser:
+    if s == '':
+        return just('')
+    else:
+        return char(s[0]).flatmap(lambda x:
+                                  string(s[1:]).flatmap(lambda xs:
+                                                        just(x + xs)))
 
 
 def space() -> Parser:
@@ -222,6 +299,10 @@ def space() -> Parser:
     :return Parser: 解析space值的Parser
     """
     return label(satisfy(str.isspace), 'Excepted: space')
+
+
+def spaces() -> Parser:
+    return many(space())
 
 
 def digit() -> Parser:
@@ -260,11 +341,40 @@ def none_of(chrs: str) -> Parser:
     return label(satisfy(lambda c: c not in chrs), 'Excepted: none of ' + ', '.join(chrs))
 
 
-# def many(parser: Parser) -> Parser:
-#
-#
+def many(parser: Parser) -> Parser:
+    return parser.flatmap(lambda x:
+                          many(parser).flatmap(lambda xs:
+                                               just([x] + xs))) | just([])
+
+
+def many1(parser: Parser) -> Parser:
+    return parser.flatmap(lambda x:
+                          many(parser).flatmap(lambda xs:
+                                               just([x] + xs)))
+
+
+def skip(parser: Parser) -> Parser:
+    return parser >> just(None)
+
+
+def skip_many(parser: Parser) -> Parser:
+    return many(parser) >> just(None)
+
+
+def protect(parser: Parser) -> Parser:
+    def inner(loc: LocatedText) -> State:
+        pre_text = copy.copy(loc)
+        state = parser.fn(loc)
+        if state.is_successful():
+            return state
+        else:
+            return State(state.result, pre_text)
+
+    return Parser(inner)
+
 
 if __name__ == '__main__':
-    res = run_parser(one_of('{}[]'), '${a}')
-    print(res)
-    print(res.text)
+    res1 = string('123456').run('123789456')
+    res2 = string('123456').run('123456789')
+    print(res1)
+    print(res2)
