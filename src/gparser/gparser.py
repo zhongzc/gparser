@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
+from functools import reduce
 
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
@@ -8,6 +9,21 @@ __see__ = 'http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf'
 from collections import namedtuple
 from typing import Callable
 import copy
+
+
+class Results:
+    def __init__(self, *l):
+        self.__lst = l
+
+    def __iter__(self):
+        for i in self.__lst:
+            yield i
+
+    def __add__(self, other):
+        return Results(*(self.__lst + other.__lst))
+
+    def __repr__(self):
+        return 'Results({})'.format(', '.join(map(repr, self.__lst)))
 
 
 class LocatedText:
@@ -185,23 +201,37 @@ class Parser:
         def inner(loc: LocatedText) -> State:
             state = self.fn(loc)
             if state.is_successful():
-                return func(state.result.value).fn(state.text)
+                return func(*(state.result.value)).fn(state.text)
             else:
                 return state
 
         return Parser(inner)
 
+    def __add__(self, other):
+        def inner(loc: LocatedText) -> State:
+            state1 = self.fn(loc)
+            if state1.is_successful():
+                state2 = other.fn(state1.text)
+                if state2.is_successful():
+                    return State(Success(state1.result.value + state2.result.value), state2.text)
+                else:
+                    return state2
+            else:
+                return state1
+
+        return Parser(inner)
+
     def map(self, func):
-        return self.flatmap(lambda v: just(func(v)))
+        return self.flatmap(lambda *v: just(func(*v)))
 
     def then(self, parser):
-        return self.flatmap(lambda _: parser)
+        return self.flatmap(lambda *_: parser)
 
     def __rshift__(self, parser):
         return self.then(parser)
 
     def __lshift__(self, parser):
-        return self.flatmap(lambda x: parser.flatmap(lambda _: just(x)))
+        return self.flatmap(lambda x: parser.flatmap(lambda *_: just(x)))
 
     def label(self, msg):
         return label(self, msg)
@@ -233,7 +263,7 @@ def satisfy(pred: Callable[[str], bool]) -> Parser:
             c = loc.remaining()[0]
             if pred(c):
                 loc.advance_one()
-                return State(Success(c), loc)
+                return State(Success(Results(c)), loc)
             else:
                 return State(ParseError("不满足条件"), loc)
 
@@ -267,7 +297,7 @@ def just(v) -> Parser:
     """
 
     def inner(loc: LocatedText) -> State:
-        return State(Success(v), loc)
+        return State(Success(Results(v)), loc)
 
     return Parser(inner)
 
@@ -361,7 +391,7 @@ def skip_many(parser: Parser) -> Parser:
     return many(parser) >> just(None)
 
 
-def protect(parser: Parser) -> Parser:
+def maybe(parser: Parser) -> Parser:
     def inner(loc: LocatedText) -> State:
         pre_text = copy.copy(loc)
         state = parser.fn(loc)
@@ -373,8 +403,24 @@ def protect(parser: Parser) -> Parser:
     return Parser(inner)
 
 
+def number() -> Parser:
+    ps = (char('-') | just('+'))
+    pd = many1(digit()).map(lambda dlst: reduce(lambda x, y: x + y, dlst))
+    return (ps + pd).map(lambda s, d: int(s + d))
+
+
+Add = namedtuple('Add', ['l', 'r'])
+Mul = namedtuple('Mul', ['l', 'r'])
+
 if __name__ == '__main__':
-    res1 = string('123456').run('123789456')
-    res2 = string('123456').run('123456789')
-    print(res1)
-    print(res2)
+    txt = '123-456*999'
+    p = number() + char('-') + number() + char('*') + number()
+    p = p.map(lambda x, a, y, m, z: Add(x, Mul(y, z)))
+    print(p.run(txt).result)
+
+    print()
+
+    txt = '123-456*999'
+    p = number() + char('+') + number() + char('*') + number()
+    p = p.map(lambda x, a, y, m, z: Add(x, Mul(y, z)))
+    print(p.run(txt))
