@@ -13,115 +13,119 @@ def test_type(t, inp: (Parser, str), res_type, remaining: str):
     t.assertEqual(state.text.remaining(), remaining)
 
 
-def test_context(t, inp: (Parser, str), result, remaining: str):
+def test_succ_cont(t, inp: (Parser, str), result, remaining: str):
     state = run_parser(inp[0], inp[1])
-    t.assertEqual(Success(*state.result.value), result)
+    t.assertEqual(*state.result.value, result)
     t.assertEqual(state.text.remaining(), remaining)
 
+def test_fail_msg(t, inp: (Parser, str), msg, remaining: str):
+    state = run_parser(inp[0], inp[1])
+    t.assertEqual(state.result.msg, msg)
+    t.assertEqual(state.text.remaining(), remaining)
 
 class ParserTest(unittest.TestCase):
     def test_map(self):
-        test_context(self, (digit().map(int), '123'), Success(1), '23')
-        test_context(self, (alpha().map(lambda x: x.upper()), 'abc'), Success('A'), 'bc')
+        test_succ_cont(self, (digit().map(int), '123'), 1, '23')
+        test_succ_cont(self, (alpha().map(lambda x: x.upper()), 'abc'), 'A', 'bc')
 
     def test_or(self):
-        test_context(self, ((digit() >> digit()) | alpha(), '1abc'), Success('a'), 'bc')
-        test_context(self, ((digit() >> digit()) | alpha(), '12abc'), Success('2'), 'abc')
-        test_context(self, ((digit() >> digit()) | alpha(), 'abc'), Success('a'), 'bc')
-        test_context(self, ((digit() >> digit()) | alpha(), '123abc'), Success('2'), '3abc')
-        test_context(self, (string('134') | string('23'), '123abc'), Success('23'), 'abc')
+        test_succ_cont(self, ((digit() >> digit()) | alpha(), '1abc'), 'a', 'bc')
+        test_succ_cont(self, ((digit() >> digit()) | alpha(), '12abc'), '2', 'abc')
+        test_succ_cont(self, ((digit() >> digit()) | alpha(), 'abc'), 'a', 'bc')
+        test_succ_cont(self, ((digit() >> digit()) | alpha(), '123abc'), '2', '3abc')
+        test_succ_cont(self, (string('134') | string('23'), '123abc'), '23', 'abc')
 
     def test_bind(self):
-        test_context(self, (digit().flatmap(lambda c1: digit()
+        test_succ_cont(self, (digit().flatmap(lambda c1: digit()
                                             .flatmap(lambda c2: digit()
                                                      .flatmap(lambda c3:
-                                                              just(int(c1 + c2 + c3))))), '1234'), Success(123), '4')
+                                                              just(int(c1 + c2 + c3))))), '1234'), 123, '4')
         test_type(self, (digit().flatmap(lambda c1: digit()
                                          .flatmap(lambda c2: digit()
                                                   .flatmap(lambda c3:
                                                            just(int(c1 + c2 + c3))))), '12a4'), ParseError, 'a4')
 
     def test_then(self):
-        test_context(self, (digit().then(digit()), '1234'), Success('2'), '34')
+        test_succ_cont(self, (digit().then(digit()), '1234'), ('2'), '34')
         test_type(self, (digit().then(alpha()), '1234'), ParseError, '234')
-        test_context(self, (digit() >> digit(), '1234'), Success('2'), '34')
+        test_succ_cont(self, (digit() >> digit(), '1234'), ('2'), '34')
         test_type(self, (digit() >> alpha(), '1234'), ParseError, '234')
 
     def test_pleft(self):
-        test_context(self, (char('a') << char(')'), 'a)bc'), Success('a'), 'bc')
-        test_context(self, (char('(') >> char('a') << char(')'), '(a)bc'), Success('a'), 'bc')
+        test_succ_cont(self, (char('a') << char(')'), 'a)bc'), ('a'), 'bc')
+        test_succ_cont(self, (char('(') >> char('a') << char(')'), '(a)bc'), ('a'), 'bc')
 
     def test_satisfy(self):
-        test_context(self, (satisfy(lambda c: c == 'a'), 'abc'), Success('a'), 'bc')
+        test_succ_cont(self, (satisfy(lambda c: c == 'a'), 'abc'), ('a'), 'bc')
         test_type(self, (satisfy(lambda c: c == 'b'), 'abc'), ParseError, 'abc')
-        test_context(self, (satisfy(str.isdigit), '123'), Success('1'), '23')
+        test_succ_cont(self, (satisfy(str.isdigit), '123'), ('1'), '23')
         test_type(self, (satisfy(str.isalnum), ''), ParseError, '')
 
     def test_just(self):
-        test_context(self, (just('&'), '987'), Success('&'), '987')
-        test_context(self, (just(999), 'cn'), Success(999), 'cn')
+        test_succ_cont(self, (just('&'), '987'), ('&'), '987')
+        test_succ_cont(self, (just(999), 'cn'), (999), 'cn')
 
     def test_char(self):
-        test_context(self, (char('['), '[abc]'), Success('['), 'abc]')
-        test_context(self, (char('9'), '987654321'), Success('9'), '87654321')
+        test_succ_cont(self, (char('['), '[abc]'), ('['), 'abc]')
+        test_succ_cont(self, (char('9'), '987654321'), ('9'), '87654321')
         test_type(self, (char('a'), '[abc]'), ParseError, '[abc]')
 
     def test_string(self):
-        test_context(self, (string('abcde'), 'abcdef'), Success('abcde'), 'f')
+        test_succ_cont(self, (string('abcde'), 'abcdef'), ('abcde'), 'f')
         test_type(self, (string('abcde'), 'abcdf'), ParseError, 'f')
 
     def test_label(self):
-        test_context(self, (label(char('a'), '777'), 'abc'), Success('a'), 'bc')
-        # test_context(self, (label(char('b'), '777'), 'abc'), ParseError('777'), 'abc')
+        test_succ_cont(self, (label(char('a'), '777'), 'abc'), ('a'), 'bc')
+        test_fail_msg(self, (label(char('b'), '777'), 'abc'), '777', 'abc')
 
     def test_label2(self):
-        test_context(self, (char('a').label('777'), 'abc'), Success('a'), 'bc')
-        # test_context(self, (char('b').label('777'), 'abc'), ParseError('777'), 'abc')
+        test_succ_cont(self, (char('a').label('777'), 'abc'), ('a'), 'bc')
+        test_fail_msg(self, (char('b').label('777'), 'abc'), '777', 'abc')
 
     def test_space(self):
-        test_context(self, (space(), '  7'), Success(' '), ' 7')
-        test_context(self, (space(), '\t 7'), Success('\t'), ' 7')
-        test_context(self, (space(), '\n 7'), Success('\n'), ' 7')
-        test_context(self, (space(), '\r 7'), Success('\r'), ' 7')
+        test_succ_cont(self, (space(), '  7'), (' '), ' 7')
+        test_succ_cont(self, (space(), '\t 7'), ('\t'), ' 7')
+        test_succ_cont(self, (space(), '\n 7'), ('\n'), ' 7')
+        test_succ_cont(self, (space(), '\r 7'), ('\r'), ' 7')
         test_type(self, (space(), '\a 7'), ParseError, '\a 7')
 
     def test_digit(self):
-        test_context(self, (digit(), '123'), Success('1'), '23')
-        test_context(self, (digit(), '0?'), Success('0'), '?')
+        test_succ_cont(self, (digit(), '123'), ('1'), '23')
+        test_succ_cont(self, (digit(), '0?'), ('0'), '?')
         test_type(self, (space(), 'abc'), ParseError, 'abc')
 
     def test_alpha(self):
-        test_context(self, (alpha(), 'ZXY'), Success('Z'), 'XY')
-        test_context(self, (alpha(), 'abc'), Success('a'), 'bc')
+        test_succ_cont(self, (alpha(), 'ZXY'), ('Z'), 'XY')
+        test_succ_cont(self, (alpha(), 'abc'), ('a'), 'bc')
         test_type(self, (alpha(), '123'), ParseError, '123')
 
     def test_one_of(self):
-        test_context(self, (one_of('{}[]'), '[]'), Success('['), ']')
+        test_succ_cont(self, (one_of('{}[]'), '[]'), ('['), ']')
         test_type(self, (one_of('{}[]'), '${a}'), ParseError, '${a}')
 
     def test_none_of(self):
-        test_context(self, (none_of('{}[]'), '${a}'), Success('$'), '{a}')
+        test_succ_cont(self, (none_of('{}[]'), '${a}'), ('$'), '{a}')
         test_type(self, (none_of('{}[]'), '[]'), ParseError, '[]')
 
     def test_many(self):
-        test_context(self, (many(digit()), '123abc'), Success(['1', '2', '3']), 'abc')
-        test_context(self, (many(space()) >> digit(), '  \t\n12'), Success('1'), '2')
-        test_context(self, (many(space()) >> digit(), '12'), Success('1'), '2')
+        test_succ_cont(self, (many(digit()), '123abc'), (['1', '2', '3']), 'abc')
+        test_succ_cont(self, (many(space()) >> digit(), '  \t\n12'), ('1'), '2')
+        test_succ_cont(self, (many(space()) >> digit(), '12'), ('1'), '2')
 
     def test_many1(self):
-        test_context(self, (many1(digit()), '123abc'), Success(['1', '2', '3']), 'abc')
+        test_succ_cont(self, (many1(digit()), '123abc'), (['1', '2', '3']), 'abc')
         test_type(self, (many1(space()) >> digit(), '12'), ParseError, '12')
 
     def test_maybe(self):
-        test_context(self, (maybe(spaces()), '   123'), Success([' ', ' ', ' ']), '123')
-        test_context(self, (maybe(string('12')) | string('13'), '133'), Success('13'), '3')
+        test_succ_cont(self, (maybe(spaces()), '   123'), ([' ', ' ', ' ']), '123')
+        test_succ_cont(self, (maybe(string('12')) | string('13'), '133'), ('13'), '3')
 
     def test_skip(self):
-        test_context(self, (skip(spaces()) >> digit(), '   123'), Success('1'), '23')
-        test_context(self, (skip(spaces()) >> digit(), '123'), Success('1'), '23')
+        test_succ_cont(self, (skip(spaces()) >> digit(), '   123'), ('1'), '23')
+        test_succ_cont(self, (skip(spaces()) >> digit(), '123'), ('1'), '23')
 
     def test_skip_many(self):
-        test_context(self, (skip_many(digit()) >> string('abc'), '9876abcd'), Success('abc'), 'd')
+        test_succ_cont(self, (skip_many(digit()) >> string('abc'), '9876abcd'), ('abc'), 'd')
 
     if __name__ == '__main__':
         unittest.main()
