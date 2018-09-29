@@ -172,6 +172,9 @@ class Parser:
     def __init__(self, fn: Callable[[LocatedText], State]):
         self.fn = fn
 
+    def assign(self, parser):
+        self.fn = parser.fn
+
     def run(self, inp: str) -> State:
         return self.fn(LocatedText(inp))
 
@@ -234,6 +237,14 @@ class Parser:
 
     def tk(self):
         return token(self)
+
+
+def undef() -> Parser:
+    @Parser
+    def inner(loc: LocatedText):
+        raise NotImplementedError('该Parser并未实现，请调用assign进行赋值')
+
+    return inner
 
 
 def run_parser(parser: Parser, inp: str) -> State:
@@ -455,30 +466,37 @@ def chain_right(node: Parser, op: Parser) -> Parser:
 
 def number() -> Parser:
     ps = (char('-') | just('+'))
-    pd = many1(digit()).map(lambda dlst: reduce(lambda x, y: x + y, dlst))
+    pd = many1(digit()).map(lambda dlst: ''.join(dlst))
     return (ps + pd).map(lambda s, d: int(s + d))
 
 
 if __name__ == '__main__':
-    # Add = namedtuple('Add', ['l', 'r'])
-    # Sub = namedtuple('Sub', ['l', 'r'])
-    # Mul = namedtuple('Mul', ['l', 'r'])
-    # Div = namedtuple('Div', ['l', 'r'])
-    #
-    # pAdd = char('+') >> just(Add)
-    # pSub = char('-') >> just(Sub)
-    # pMul = char('*') >> just(Mul)
-    # pDiv = char('/') >> just(Div)
-    #
-    # # Exp = Factor (( '+' | '-' ) Factor)*
-    # def pExp():    return lambda: chain_left(pFactor()(), pAdd | pSub)
-    #
-    # # Factor = Term (( '*' | '/' ) Term)*
-    # def pFactor(): return lambda: chain_left(pTerm()(), pMul | pDiv)
-    #
-    # # Term = <数字> | '(' Exp ')'
-    # def pTerm():   return lambda: number() | between(char('('), pExp()(), char(')'))
-    #
-    # # statement = 'int a = (1'
-    # exp = '(12+32)*42'
-    # print(pExp()().run(exp))
+    Add = namedtuple('Add', ['l', 'r'])
+    Sub = namedtuple('Sub', ['l', 'r'])
+    Mul = namedtuple('Mul', ['l', 'r'])
+    Div = namedtuple('Div', ['l', 'r'])
+
+    pAdd = char('+') >> just(Add)
+    pSub = char('-') >> just(Sub)
+    pMul = char('*') >> just(Mul)
+    pDiv = char('/') >> just(Div)
+
+    pExp = undef()
+    pFactor = undef()
+    pTerm = undef()
+
+    # Exp = Factor (( '+' | '-' ) Factor)*
+    pExp.assign(
+        chain_left(pFactor, pAdd | pSub)
+    )
+    # Factor = Term (( '*' | '/' ) Term)*
+    pFactor.assign(
+        chain_left(pTerm, pMul | pDiv)
+    )
+    # Term = <数字> | '(' Exp ')'
+    pTerm.assign(
+        number() | between(char('('), pExp, char(')'))
+    )
+
+    exp = '(12+32)*42'
+    print(pExp.run(exp).result)
