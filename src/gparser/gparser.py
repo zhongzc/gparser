@@ -186,6 +186,7 @@ class Parser:
         消耗or
         """
 
+        @Parser
         def inner(loc: LocatedText) -> State:
             state = self.fn(loc)
             if state.is_successful():
@@ -193,7 +194,7 @@ class Parser:
             else:
                 return other.fn(state.text)
 
-        return Parser(inner)
+        return inner
 
     def flatmap(self, func):
         """
@@ -202,6 +203,7 @@ class Parser:
         :see : https://en.wikipedia.org/wiki/Monad_(functional_programming)
         """
 
+        @Parser
         def inner(loc: LocatedText) -> State:
             state = self.fn(loc)
             if state.is_successful():
@@ -209,7 +211,7 @@ class Parser:
             else:
                 return state
 
-        return Parser(inner)
+        return inner
 
     def __add__(self, other):
         return self.flatmap(lambda *x: other.flatmap(lambda *y: _trick_just(x + y)))
@@ -241,7 +243,7 @@ class Parser:
 
 def undef() -> Parser:
     @Parser
-    def inner(loc: LocatedText):
+    def inner(_: LocatedText):
         raise NotImplementedError('该Parser并未实现，请调用assign进行赋值')
 
     return inner
@@ -266,6 +268,7 @@ def satisfy(pred: Callable[[str], bool]) -> Parser:
     :return Parser: 相应的Parser
     """
 
+    @Parser
     def inner(loc: LocatedText) -> State:
         if loc.isEOF():
             return State(ParseError("再无输入可解析"), loc)
@@ -277,7 +280,7 @@ def satisfy(pred: Callable[[str], bool]) -> Parser:
             else:
                 return State(ParseError("不满足条件"), loc)
 
-    return Parser(inner)
+    return inner
 
 
 def label(parser: Parser, msg: str) -> Parser:
@@ -289,6 +292,7 @@ def label(parser: Parser, msg: str) -> Parser:
     :return Parser: 修饰过的Parser
     """
 
+    @Parser
     def inner(loc: LocatedText) -> State:
         state = parser.fn(loc)
         if state.is_successful():
@@ -296,7 +300,7 @@ def label(parser: Parser, msg: str) -> Parser:
         else:
             return State(ParseError(msg), state.text)
 
-    return Parser(inner)
+    return inner
 
 
 def just(v) -> Parser:
@@ -306,17 +310,19 @@ def just(v) -> Parser:
     :return Parser: 未改变的Parser状态，但解析成功的值变为v
     """
 
+    @Parser
     def inner(loc: LocatedText) -> State:
         return State(Success(Results(v)), loc)
 
-    return Parser(inner)
+    return inner
 
 
 def _trick_just(r: Results) -> Parser:
+    @Parser
     def inner(loc: LocatedText) -> State:
         return State(Success(r), loc)
 
-    return Parser(inner)
+    return inner
 
 
 def char(x: str) -> Parser:
@@ -369,6 +375,7 @@ def alpha() -> Parser:
 
 
 def regex(rex) -> Parser:
+    @Parser
     def inner(loc: LocatedText) -> State:
         res = re.match(rex, loc.remaining())
         if res is None:
@@ -378,7 +385,7 @@ def regex(rex) -> Parser:
             loc.advance(e)
             return State(Success(Results(res.group())), loc)
 
-    return Parser(inner)
+    return inner
 
 
 def one_of(chrs: str) -> Parser:
@@ -426,6 +433,7 @@ def maybe(parser: Parser) -> Parser:
     for backtracking
     """
 
+    @Parser
     def inner(loc: LocatedText) -> State:
         pre_text = copy.copy(loc)
         state = parser.fn(loc)
@@ -434,7 +442,7 @@ def maybe(parser: Parser) -> Parser:
         else:
             return State(state.result, pre_text)
 
-    return Parser(inner)
+    return inner
 
 
 def between(lf: Parser, cont: Parser, rt: Parser) -> Parser:
@@ -475,11 +483,14 @@ if __name__ == '__main__':
     Sub = namedtuple('Sub', ['l', 'r'])
     Mul = namedtuple('Mul', ['l', 'r'])
     Div = namedtuple('Div', ['l', 'r'])
+    Exp = namedtuple('Exp', ['expression'])
+    Declare = namedtuple('Declare', ['type', 'sym', 'value'])
 
-    pAdd = char('+') >> just(Add)
-    pSub = char('-') >> just(Sub)
-    pMul = char('*') >> just(Mul)
-    pDiv = char('/') >> just(Div)
+    pAdd = char('+').tk() >> just(Add)
+    pSub = char('-').tk() >> just(Sub)
+    pMul = char('*').tk() >> just(Mul)
+    pDiv = char('/').tk() >> just(Div)
+    pNum = number().tk()
 
     pExp = undef()
     pFactor = undef()
@@ -495,8 +506,27 @@ if __name__ == '__main__':
     )
     # Term = <数字> | '(' Exp ')'
     pTerm.assign(
-        number() | between(char('('), pExp, char(')'))
+        pNum | between(char('('), pExp, char(')'))
     )
 
-    exp = '(12+32)*42'
-    print(pExp.run(exp).result)
+    pType = (string('int') | string('double')).tk()
+    pSym = regex(r'[A-Za-z_][A-Za-z0-9_]*').tk()
+
+    pDecl = (pType +
+             pSym +
+             ((~char('=') + pExp).map(lambda e: Exp(e)) | just(None)) +
+             ~char(';')).map(lambda t, s, e: Declare(t, s, e))
+
+
+    decl = 'int x = (12 + 32) * 42;'
+    print(pDecl.run(decl).result)
+
+    print()
+
+    decl = 'double __d;'
+    print(pDecl.run(decl).result)
+
+    print()
+
+    decl = 'double 2c;'
+    print(pDecl.run(decl))
