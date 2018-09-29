@@ -8,6 +8,7 @@ __see__ = 'http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf'
 from collections import namedtuple
 from typing import Callable
 from functools import reduce
+import re
 import copy
 
 
@@ -48,13 +49,13 @@ class LocatedText:
         """
         return self.__str[self.__loc:]
 
-    def advance_one(self) -> None:
+    def advance(self, n=1) -> None:
         """
         :return None: 成功解析一个字符后，负责前进一位
         """
         if self.isEOF():
             raise RuntimeError('Parsing has completed')
-        self.__loc += 1
+        self.__loc += n
 
     def isEOF(self) -> bool:
         """
@@ -222,8 +223,17 @@ class Parser:
     def __lshift__(self, parser):
         return self.flatmap(lambda x: parser.flatmap(lambda *_: just(x)))
 
+    def __invert__(self):
+        return skip(self)
+
     def label(self, msg):
         return label(self, msg)
+
+    def sep_by(self, sep):
+        return sep_by(self, sep)
+
+    def tk(self):
+        return token(self)
 
 
 def run_parser(parser: Parser, inp: str) -> State:
@@ -251,7 +261,7 @@ def satisfy(pred: Callable[[str], bool]) -> Parser:
         else:
             c = loc.remaining()[0]
             if pred(c):
-                loc.advance_one()
+                loc.advance()
                 return State(Success(Results(c)), loc)
             else:
                 return State(ParseError("不满足条件"), loc)
@@ -347,6 +357,19 @@ def alpha() -> Parser:
     return label(satisfy(str.isalpha), 'Excepted: alpha')
 
 
+def regex(rex) -> Parser:
+    def inner(loc: LocatedText) -> State:
+        res = re.match(rex, loc.remaining())
+        if res is None:
+            return State(ParseError("不满足正则条件"), loc)
+        else:
+            e = res.end()
+            loc.advance(e)
+            return State(Success(Results(res.group())), loc)
+
+    return Parser(inner)
+
+
 def one_of(chrs: str) -> Parser:
     """
     解析所给字符串里的其中一个字符
@@ -391,6 +414,7 @@ def maybe(parser: Parser) -> Parser:
     """
     for backtracking
     """
+
     def inner(loc: LocatedText) -> State:
         pre_text = copy.copy(loc)
         state = parser.fn(loc)
@@ -401,6 +425,25 @@ def maybe(parser: Parser) -> Parser:
 
     return Parser(inner)
 
+
+def between(lf: Parser, cont: Parser, rt: Parser) -> Parser:
+    # return ~lf + cont + ~rt
+    return lf >> cont << rt
+
+
+def sep_by1(cont: Parser, sep: Parser) -> Parser:
+    return (cont + many(sep >> cont)).map(lambda x, xs: [x] + xs)
+
+
+def sep_by(cont: Parser, sep: Parser) -> Parser:
+    return sep_by1(cont, sep) | just([])
+
+
+def token(parser: Parser) -> Parser:
+    # return ~spaces() + parser + ~spaces()
+    return spaces() >> parser << spaces()
+
+# def chain_left1()
 
 def number() -> Parser:
     ps = (char('-') | just('+'))
@@ -422,6 +465,13 @@ if __name__ == '__main__':
 
     txt = '123+456*999'
     p = number() + skip(char('+')) + number() + skip(char('*')) + number()
+    p = p.map(lambda x, y, z: Add(x, Mul(y, z)))
+    print(p.run(txt).result)
+
+    print()
+
+    txt = '123+456*999'
+    p = number() + ~char('+') + number() + ~char('*') + number()
     p = p.map(lambda x, y, z: Add(x, Mul(y, z)))
     print(p.run(txt).result)
 

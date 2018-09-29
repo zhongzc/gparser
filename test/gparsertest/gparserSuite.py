@@ -99,6 +99,11 @@ class ParserTest(unittest.TestCase):
         test_succ_cont(self, (alpha(), 'abc'), ('a'), 'bc')
         test_type(self, (alpha(), '123'), ParseError, '123')
 
+    def test_regex(self):
+        p = regex(r'[A-Za-z_][A-Za-z0-9_]*')
+        test_succ_cont(self, (p, '_iower3 = 2'), '_iower3', ' = 2')
+        test_type(self, (p, '42'), ParseError, '42')
+
     def test_one_of(self):
         test_succ_cont(self, (one_of('{}[]'), '[]'), ('['), ']')
         test_type(self, (one_of('{}[]'), '${a}'), ParseError, '${a}')
@@ -126,6 +131,17 @@ class ParserTest(unittest.TestCase):
 
     def test_skip_many(self):
         test_succ_cont(self, (skip_many(digit()) >> string('abc'), '9876abcd'), ('abc'), 'd')
+
+    def test_between(self):
+        test_succ_cont(self, (between(char('['), string('abc'), char(']')), '[abc]'), 'abc', '')
+
+    def test_sep_by1(self):
+        test_succ_cont(self, (sep_by1(number(), spaces()), '123 456 678'), [123, 456, 678], '')
+
+    def test_sep_by(self):
+        test_succ_cont(self, (sep_by(number(), spaces()), '123 456 678'), [123, 456, 678], '')
+        test_succ_cont(self, (number().sep_by(spaces()), '123 456 678'), [123, 456, 678], '')
+        test_succ_cont(self, (sep_by(number(), spaces()), 'abc ded aad'), [], 'abc ded aad')
 
     if __name__ == '__main__':
         unittest.main()
