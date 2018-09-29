@@ -443,7 +443,15 @@ def token(parser: Parser) -> Parser:
     # return ~spaces() + parser + ~spaces()
     return spaces() >> parser << spaces()
 
-# def chain_left1()
+
+def chain_left(node: Parser, op: Parser) -> Parser:
+    aux = (op + node).map(lambda fn, n: lambda x: fn(x, n))
+    return (node + many(aux)).map(lambda fst, nps: reduce((lambda x, cmb: cmb(x)), [fst] + nps))
+
+
+def chain_right(node: Parser, op: Parser) -> Parser:
+    return node.flatmap(lambda l: (op + chain_right(node, op)).map(lambda fn, r: fn(l, r)) | just(l))
+
 
 def number() -> Parser:
     ps = (char('-') | just('+'))
@@ -452,32 +460,25 @@ def number() -> Parser:
 
 
 if __name__ == '__main__':
-    Add = namedtuple('Add', ['l', 'r'])
-    Sub = namedtuple('Sub', ['l', 'r'])
-    Mul = namedtuple('Mul', ['l', 'r'])
-
-    txt = '123-456*999'
-    p = number() + char('-') + number() + char('*') + number()
-    p = p.map(lambda x, _, y, __, z: Sub(x, Mul(y, z)))
-    print(p.run(txt).result)
-
-    print()
-
-    txt = '123+456*999'
-    p = number() + skip(char('+')) + number() + skip(char('*')) + number()
-    p = p.map(lambda x, y, z: Add(x, Mul(y, z)))
-    print(p.run(txt).result)
-
-    print()
-
-    txt = '123+456*999'
-    p = number() + ~char('+') + number() + ~char('*') + number()
-    p = p.map(lambda x, y, z: Add(x, Mul(y, z)))
-    print(p.run(txt).result)
-
-    print()
-
-    txt = '123+456*999'
-    p = number() + skip(char('-')) + number() + skip(char('*')) + number()
-    p = p.map(lambda x, y, z: Add(x, Mul(y, z)))
-    print(p.run(txt))
+    # Add = namedtuple('Add', ['l', 'r'])
+    # Sub = namedtuple('Sub', ['l', 'r'])
+    # Mul = namedtuple('Mul', ['l', 'r'])
+    # Div = namedtuple('Div', ['l', 'r'])
+    #
+    # pAdd = char('+') >> just(Add)
+    # pSub = char('-') >> just(Sub)
+    # pMul = char('*') >> just(Mul)
+    # pDiv = char('/') >> just(Div)
+    #
+    # # Exp = Factor (( '+' | '-' ) Factor)*
+    # def pExp():    return lambda: chain_left(pFactor()(), pAdd | pSub)
+    #
+    # # Factor = Term (( '*' | '/' ) Term)*
+    # def pFactor(): return lambda: chain_left(pTerm()(), pMul | pDiv)
+    #
+    # # Term = <数字> | '(' Exp ')'
+    # def pTerm():   return lambda: number() | between(char('('), pExp()(), char(')'))
+    #
+    # # statement = 'int a = (1'
+    # exp = '(12+32)*42'
+    # print(pExp()().run(exp))
