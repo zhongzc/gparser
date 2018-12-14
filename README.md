@@ -106,4 +106,4 @@ ParseError(msg='Excepted: <EOF>') # (1)
 
 ## 更多
 
-更多详细文档请查阅[Gparser Document](https://gaufoo.com)
+更多详细文档请查阅[Gparser Document](https://gaufoo.com/gparser/)
