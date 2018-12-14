@@ -1,164 +1,15 @@
-#!/usr/bin/python
 # -*- coding: UTF-8 -*-
-
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
-
 __see__ = 'http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf'
 
+from gparser.util.state import State
+from gparser.util.locatedText import LocatedText
+from gparser.util.results import Results, Success, ParseError
 from collections import namedtuple
 from typing import Callable
 from functools import reduce
 import re
 import copy
-
-
-class Results:
-    def __init__(self, *l):
-        self.__lst = l
-
-    def __iter__(self):
-        for i in self.__lst:
-            yield i
-
-    def __add__(self, other):
-        return Results(*(self.__lst + other.__lst))
-
-    def __repr__(self):
-        return 'Results({})'.format(', '.join(map(repr, self.__lst)))
-
-
-class LocatedText:
-    """
-    包含待解析字符串，以及字符串解析到的位置
-    """
-    __str = ...  # type: str
-    __loc = ...  # type: int
-
-    def __init__(self, inp: str, loc: int = 0):
-        if loc > len(inp):
-            raise RuntimeError('Invalid argument')
-        self.__str = inp
-        self.__loc = loc
-
-    def __copy__(self):
-        return LocatedText(self.__str, self.__loc)
-
-    def remaining(self) -> str:
-        """
-        :return str: 剩余未解析的字符串
-        """
-        return self.__str[self.__loc:]
-
-    def advance(self, n=1) -> None:
-        """
-        :return None: 成功解析一个字符后，负责前进一位
-        """
-        if self.isEOF():
-            raise RuntimeError('Parsing has completed')
-        self.__loc += n
-
-    def isEOF(self) -> bool:
-        """
-        :return bool: 字符串是否已经解析完成
-        """
-        return self.__loc == len(self.__str)
-
-    def row(self) -> int:
-        """
-        :return int: 返回目前解析到的行数，以 1 开始计数
-        """
-        return self.__str[0: self.__loc].count('\n') + 1
-
-    def col(self) -> int:
-        """
-        :return int: 返回目前解析到的列数，以 1 开始计数
-        """
-        l = self.__str[0: self.__loc].rfind('\n')
-        if (l == -1):
-            return self.__loc + 1
-        else:
-            return self.__loc - l
-
-    def current_line(self) -> str:
-        """
-        :return str: 返回所解析到的完整行，以便输出错误信息
-        例：
-            '123\n456\n789'，若解析到'5'，则返回'456'
-        """
-        return self.__str.splitlines()[self.row() - 1]
-
-    def column_caret(self) -> str:
-        """
-        :return str: 返回指示当前所解析字符的指针，以便输出错误信息
-        例：
-            '123\n456\n789'，若解析到'5'，则返回' ^'
-            最终信息将显示：
-            >> 456
-            >>  ^
-        """
-        return (" " * (self.col() - 1)) + "^"
-
-    def __repr__(self):
-        return str({'loc': self.__loc, 'str': self.__str})
-
-    def __str__(self):
-        """
-        :return str: 返回友好的解析位置信息
-        例：
-            '123\n456\n789'，若解析到'5'
-            最终信息将显示：
-            >> (2,2)
-            >> 456
-            >>  ^
-        """
-        return '({},{})'.format(self.row(), self.col()) + '\n' + \
-               self.current_line() + '\n' + \
-               self.column_caret()
-
-
-"""
-# Success
-
-解析成功后的State.result包含的值
-"""
-Success = namedtuple('Success', ['value'])
-
-"""
-# ParseError
-
-解释失败后State.result包含的错误信息
-"""
-ParseError = namedtuple('ParseError', ['msg'])
-
-
-class State:
-    """
-    # State(result: T, text: LocatedText)
-
-    解析后返回的状态，result的类型是(Success | ParseError)
-    """
-
-    def __init__(self, result, text: LocatedText):
-        self.result = result
-        self.text = text
-
-    def is_successful(self):
-        return isinstance(self.result, Success)
-
-    def __repr__(self):
-        return 'State({}, {})'.format(
-            'result=' + repr(self.result),
-            'text=' + repr(self.text)
-        )
-
-    def __str__(self):
-        if self.is_successful():
-            return 'Parsing succeed'
-        else:
-            return '{}\n{}'.format(
-                self.result.msg,
-                self.text
-            )
 
 
 class Parser:
@@ -177,6 +28,9 @@ class Parser:
 
     def run(self, inp: str) -> State:
         return self.fn(LocatedText(inp))
+
+    def run_strict(self, inp: str) -> State:
+        return (self << eof()).run(inp)
 
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
@@ -279,6 +133,17 @@ def satisfy(pred: Callable[[str], bool]) -> Parser:
                 return State(Success(Results(c)), loc)
             else:
                 return State(ParseError("不满足条件"), loc)
+
+    return inner
+
+
+def eof() -> Parser:
+    @Parser
+    def inner(loc: LocatedText) -> State:
+        if loc.isEOF():
+            return State(Success(Results()), loc)
+        else:
+            return State(ParseError("Excepted: <EOF>"), loc)
 
     return inner
 
@@ -509,24 +374,32 @@ if __name__ == '__main__':
         pNum | between(char('('), pExp, char(')'))
     )
 
+    # 解析类型符
     pType = (string('int') | string('double')).tk()
+
+    # 解析变量名
     pSym = regex(r'[A-Za-z_][A-Za-z0-9_]*').tk()
 
+    # 解析整个声明语句
     pDecl = (pType +
              pSym +
              ((~char('=') + pExp).map(lambda e: Exp(e)) | just(None)) +
              ~char(';')).map(lambda t, s, e: Declare(t, s, e))
 
-
     decl = 'int x = (12 + 32) * 42;'
-    print(pDecl.run(decl).result)
+    print(pDecl.run_strict(decl).result)
 
     print()
 
     decl = 'double __d;'
-    print(pDecl.run(decl).result)
+    print(pDecl.run_strict(decl).result)
+
+    print()
+
+    decl = 'double __d'
+    print(pDecl.run_strict(decl))
 
     print()
 
     decl = 'double 2c;'
-    print(pDecl.run(decl))
+    print(pDecl.run_strict(decl))

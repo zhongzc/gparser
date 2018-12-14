@@ -4,7 +4,7 @@
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
 import unittest
-from gparser.gparser import *
+from gparser.parser import *
 
 
 def test_type(t, inp: (Parser, str), res_type, remaining: str):
@@ -18,10 +18,12 @@ def test_succ_cont(t, inp: (Parser, str), result, remaining: str):
     t.assertEqual(*state.result.value, result)
     t.assertEqual(state.text.remaining(), remaining)
 
+
 def test_fail_msg(t, inp: (Parser, str), msg, remaining: str):
     state = run_parser(inp[0], inp[1])
     t.assertEqual(state.result.msg, msg)
     t.assertEqual(state.text.remaining(), remaining)
+
 
 class ParserTest(unittest.TestCase):
     def test_map(self):
@@ -37,9 +39,9 @@ class ParserTest(unittest.TestCase):
 
     def test_bind(self):
         test_succ_cont(self, (digit().flatmap(lambda c1: digit()
-                                            .flatmap(lambda c2: digit()
-                                                     .flatmap(lambda c3:
-                                                              just(int(c1 + c2 + c3))))), '1234'), 123, '4')
+                                              .flatmap(lambda c2: digit()
+                                                       .flatmap(lambda c3:
+                                                                just(int(c1 + c2 + c3))))), '1234'), 123, '4')
         test_type(self, (digit().flatmap(lambda c1: digit()
                                          .flatmap(lambda c2: digit()
                                                   .flatmap(lambda c3:
@@ -174,3 +176,7 @@ class LocatedTextTest(unittest.TestCase):
         self.assertEqual(LocatedText(self.test_str, 6).column_caret(), '^')
         self.assertEqual(LocatedText(self.test_str, 16).column_caret(), '    ^')
         self.assertEqual(LocatedText(self.test_str, 11).column_caret(), '     ^')
+
+
+if __name__ == '__main__':
+    unittest.main()
