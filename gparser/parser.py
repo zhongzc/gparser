@@ -4,7 +4,7 @@ __see__ = 'http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf'
 
 from gparser.util.state import State
 from gparser.util.locatedText import LocatedText
-from gparser.util.results import Results, Success, ParseError
+from gparser.util.result import Result, Success, ParseError
 from collections import namedtuple
 from typing import Callable
 from functools import reduce
@@ -18,7 +18,6 @@ class Parser:
 
     解析器，运行时接受一个LocatedText，返回解析后的状态
     """
-    fn = ...  # type: Callable[[LocatedText], State]
 
     def __init__(self, fn: Callable[[LocatedText], State]):
         self.fn = fn
@@ -130,7 +129,7 @@ def satisfy(pred: Callable[[str], bool]) -> Parser:
             c = loc.remaining()[0]
             if pred(c):
                 loc.advance()
-                return State(Success(Results(c)), loc)
+                return State(Success(Result(c)), loc)
             else:
                 return State(ParseError("不满足条件"), loc)
 
@@ -141,7 +140,7 @@ def eof() -> Parser:
     @Parser
     def inner(loc: LocatedText) -> State:
         if loc.isEOF():
-            return State(Success(Results()), loc)
+            return State(Success(Result()), loc)
         else:
             return State(ParseError("Excepted: <EOF>"), loc)
 
@@ -177,12 +176,12 @@ def just(v) -> Parser:
 
     @Parser
     def inner(loc: LocatedText) -> State:
-        return State(Success(Results(v)), loc)
+        return State(Success(Result(v)), loc)
 
     return inner
 
 
-def _trick_just(r: Results) -> Parser:
+def _trick_just(r: Result) -> Parser:
     @Parser
     def inner(loc: LocatedText) -> State:
         return State(Success(r), loc)
@@ -248,7 +247,7 @@ def regex(rex) -> Parser:
         else:
             e = res.end()
             loc.advance(e)
-            return State(Success(Results(res.group())), loc)
+            return State(Success(Result(res.group())), loc)
 
     return inner
 
@@ -282,15 +281,15 @@ def many1(parser: Parser) -> Parser:
 
 
 def skip(parser: Parser) -> Parser:
-    return parser >> _trick_just(Results())
+    return parser >> _trick_just(Result())
 
 
 def skip_many(parser: Parser) -> Parser:
-    return many(parser) >> _trick_just(Results())
+    return many(parser) >> _trick_just(Result())
 
 
 def skip_many1(parser: Parser) -> Parser:
-    return many1(parser) >> _trick_just(Results())
+    return many1(parser) >> _trick_just(Result())
 
 
 def maybe(parser: Parser) -> Parser:

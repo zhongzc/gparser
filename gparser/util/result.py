@@ -4,7 +4,7 @@ __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 from collections import namedtuple
 
 
-class Results:
+class Result:
     def __init__(self, *l):
         self.__lst = l
 
@@ -13,7 +13,7 @@ class Results:
             yield i
 
     def __add__(self, other):
-        return Results(*(self.__lst + other.__lst))
+        return Result(*(self.__lst + other.__lst))
 
     def __repr__(self):
         return 'Results({})'.format(', '.join(map(repr, self.__lst)))

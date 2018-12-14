@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from gparser.util.locatedText import LocatedText
-from gparser.util.results import Success
+from gparser.util.result import Success
 
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
