@@ -5,7 +5,6 @@ __see__ = 'http://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf'
 from gparser.util.state import State
 from gparser.util.locatedText import LocatedText
 from gparser.util.result import Result, Success, ParseError
-from collections import namedtuple
 from typing import Callable
 from functools import reduce
 import re
@@ -92,6 +91,12 @@ class Parser:
 
     def tk(self):
         return token(self)
+
+    def or_not(self):
+        return maybe(self) | _trick_just(Result())
+
+    def maybe(self):
+        return maybe(self)
 
 
 def undef() -> Parser:
@@ -342,63 +347,9 @@ def number() -> Parser:
     return (ps + pd).map(lambda s, d: int(s + d))
 
 
+def concat(*s):
+    return ''.join(list(s))
+
+
 if __name__ == '__main__':
-    Add = namedtuple('Add', ['l', 'r'])
-    Sub = namedtuple('Sub', ['l', 'r'])
-    Mul = namedtuple('Mul', ['l', 'r'])
-    Div = namedtuple('Div', ['l', 'r'])
-    Exp = namedtuple('Exp', ['expression'])
-    Declare = namedtuple('Declare', ['type', 'sym', 'value'])
-
-    pAdd = char('+').tk() >> just(Add)
-    pSub = char('-').tk() >> just(Sub)
-    pMul = char('*').tk() >> just(Mul)
-    pDiv = char('/').tk() >> just(Div)
-    pNum = number().tk()
-
-    pExp = undef()
-    pFactor = undef()
-    pTerm = undef()
-
-    # Exp = Factor (( '+' | '-' ) Factor)*
-    pExp.assign(
-        chain_left(pFactor, pAdd | pSub)
-    )
-    # Factor = Term (( '*' | '/' ) Term)*
-    pFactor.assign(
-        chain_left(pTerm, pMul | pDiv)
-    )
-    # Term = <数字> | '(' Exp ')'
-    pTerm.assign(
-        pNum | between(char('('), pExp, char(')'))
-    )
-
-    # 解析类型符
-    pType = (string('int') | string('double')).tk()
-
-    # 解析变量名
-    pSym = regex(r'[A-Za-z_][A-Za-z0-9_]*').tk()
-
-    # 解析整个声明语句
-    pDecl = (pType +
-             pSym +
-             ((~char('=') + pExp).map(lambda e: Exp(e)) | just(None)) +
-             ~char(';')).map(lambda t, s, e: Declare(t, s, e))
-
-    decl = 'int x = (12 + 32) * 42;'
-    print(pDecl.run_strict(decl).result)
-
-    print()
-
-    decl = 'double __d;'
-    print(pDecl.run_strict(decl).result)
-
-    print()
-
-    decl = 'double __d'
-    print(pDecl.run_strict(decl))
-
-    print()
-
-    decl = 'double 2c;'
-    print(pDecl.run_strict(decl))
+    pass
