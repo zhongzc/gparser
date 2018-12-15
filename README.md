@@ -74,11 +74,10 @@ Success(value=Result('.'))  # (1)
 2. 表明解析到的位置坐标，这里表示解析到第1行第2列的`/`处
 3. 用用户友好的方式展示解析到的行以及待解析字符所在位置
 
-`Result`是一个可迭代对象，可以通过`for`语法进行提取，或者与其他高阶函数如`map`等进行组合：
+解析结果`result`的类型可能是`Success`或者`ParseError`，可以通过`get`方法提取解析成功结果，假设解析失败，`get`方法会抛出异常：
 ```python
 ...
-for i in result.value:
-    print(i)
+print(result.get())
     
 # 输出：
 # .
