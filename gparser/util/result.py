@@ -1,8 +1,6 @@
 # -*- coding: UTF-8 -*-
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
-from collections import namedtuple
-
 
 class Result:
     def __init__(self, *l):
