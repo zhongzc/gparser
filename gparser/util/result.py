@@ -16,7 +16,7 @@ class Result:
         return Result(*(self.__lst + other.__lst))
 
     def __repr__(self):
-        return 'Results({})'.format(', '.join(map(repr, self.__lst)))
+        return 'Result({})'.format(', '.join(map(repr, self.__lst)))
 
 
 """
