@@ -46,7 +46,7 @@ if __name__ == '__main__':
         "state": "NY",
         "postalCode": 10021
     },
-    "phoneNumbers":[
+    "phoneNumbers": [
         {
             "type": "home",
             "number": "212 555-1234"
@@ -58,4 +58,4 @@ if __name__ == '__main__':
     ]
 }"""
     res, t = jExp.run(str)
-    print(res)
+    print(res.get())

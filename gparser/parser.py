@@ -352,4 +352,6 @@ def concat(*s):
 
 
 if __name__ == '__main__':
-    pass
+    s = skip(char('1'))
+    res, t = s.run('1')
+    print(res.value.get())
