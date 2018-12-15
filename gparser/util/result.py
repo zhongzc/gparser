@@ -18,6 +18,10 @@ class Result:
     def __repr__(self):
         return 'Result({})'.format(', '.join(map(repr, self.__lst)))
 
+    def get(self):
+        for i in self:
+            return i
+
 
 """
 # Success
