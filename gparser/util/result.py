@@ -23,13 +23,6 @@ class Result:
         return None
 
 
-"""
-# Success
-
-解析成功后的State.result包含的值
-"""
-
-
 class Success:
     def __init__(self, value):
         self.value = value
@@ -38,14 +31,12 @@ class Success:
         return 'Success(value={})'.format(self.value)
 
     def get(self):
+        if type(self.value) == tuple:
+            raise RuntimeError('用+连接后，需要接map进行处理')
+
         return self.value.get()
 
 
-"""
-# ParseError
-
-解释失败后State.result包含的错误信息
-"""
 class ParseError:
     def __init__(self, msg):
         self.msg = msg
