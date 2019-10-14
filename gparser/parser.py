@@ -186,6 +186,19 @@ def just(v) -> Parser:
     return inner
 
 
+def fail(msg: str = "") -> Parser:
+    """
+    直接导致解析错误，且不消耗任何字符
+    :param msg: 解析错误信息
+    :return: Parser: 未改变的Parser状态，但直接解析错误
+    """
+    @Parser
+    def inner(loc: LocatedText) -> State:
+        return State(ParseError(msg), loc)
+
+    return inner
+
+
 def _trick_just(r: Result) -> Parser:
     @Parser
     def inner(loc: LocatedText) -> State:
@@ -349,7 +362,3 @@ def number() -> Parser:
 
 def concat(*s):
     return ''.join(list(s))
-
-
-if __name__ == '__main__':
-    pass
