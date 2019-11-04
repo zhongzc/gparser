@@ -186,14 +186,16 @@ def just(v) -> Parser:
     return inner
 
 
-def fail(msg: str = "") -> Parser:
+def fail(msg: str = "", back_step: int = 0) -> Parser:
     """
     直接导致解析错误，且不消耗任何字符
+    :param back_step: number of back steps
     :param msg: 解析错误信息
     :return: Parser: 未改变的Parser状态，但直接解析错误
     """
     @Parser
     def inner(loc: LocatedText) -> State:
+        loc.back(back_step)
         return State(ParseError(msg), loc)
 
     return inner

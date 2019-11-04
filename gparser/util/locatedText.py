@@ -31,6 +31,11 @@ class LocatedText:
             raise RuntimeError('Parsing has completed')
         self.__loc += n
 
+    def back(self, n=1) -> None:
+        if self.__loc - n < 0:
+            raise RuntimeError('Back too much')
+        self.__loc -= n
+
     def isEOF(self) -> bool:
         """
         :return bool: 字符串是否已经解析完成
