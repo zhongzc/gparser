@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name = 'Gparser',
+    name = 'gparser',
     version = '0.0.2',
     description = 'am expressive parser library',
     license = 'MIT License',

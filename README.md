@@ -1,5 +1,5 @@
 # Gparser
-
+[![PyPI](https://img.shields.io/pypi/v/gparser.svg)](https://pypi.python.org/pypi)
 
 ## Parser Combinator Library
 
@@ -10,19 +10,10 @@
 
 ## Get Started
 
-- 下载
-
-首先把项目下载下来，\*nix下使用命令行：
-```sh
-$ git clone https://github.com/zhongzc/gparser.git
-```
-Windows用户可自行前往Github下载。
-
 - 安装
 
-\*nix下使用命令行：
 ```sh
-$ sudo python3 setup.py install
+$ pip install gparser
 ```
 
 - 使用
@@ -35,14 +26,6 @@ Type "help", "copyright", "credits" or "license" for more information.
 >>> import gparser as gp
 ...
 ```
-
-- 删除
-
-要删除egg文件：
-```sh
-$ sudo rm -rf /usr/local/lib/pythonX.X/site-packages/[PACKAGE].egg
-```
-然后修改`site-packages/easy-install.pth`，删除相应行。
 
 ## Hello World
 
