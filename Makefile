@@ -2,6 +2,7 @@ check:
 	pycodestyle .
 	flake8 .
 
+
 test:
 	pytest -v --cov
 

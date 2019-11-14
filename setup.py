@@ -7,7 +7,7 @@ setup_requires = ['pytest-runner']
 
 setup(
     name='gparser',
-    version='0.1.0',
+    version='0.1.1',
     description='am expressive parser library',
     license='MIT License',
     url='https://github.com/zhongzc/gparser',
