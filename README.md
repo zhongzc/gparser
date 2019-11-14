@@ -1,5 +1,7 @@
 # Gparser
 [![PyPI](https://img.shields.io/pypi/v/gparser.svg)](https://pypi.python.org/pypi)
+[![Build Status](https://travis-ci.com/zhongzc/gparser.svg?branch=master)](https://travis-ci.com/zhongzc/gparser)
+[![codecov](https://codecov.io/gh/zhongzc/gparser/branch/master/graph/badge.svg)](https://codecov.io/gh/zhongzc/gparser)
 
 ## Parser Combinator Library
 

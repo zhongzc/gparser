@@ -21,4 +21,6 @@ if __name__ == '__main__':
     # Term = <数字> | '(' Exp ')'
     pTerm.assign(pNum | gp.between(gp.char('(').tk(), pExp, gp.char(')').tk()))
 
-    assert pExp.run_strict('384.666 - 80 * (85.5 + 3)').result.value.get() == (384.666 - 80 * (85.5 + 3))
+    res = pExp.run_strict('384.666 - 80 * (85.5 + 3)').result.value.get()
+
+    assert res == (384.666 - 80 * (85.5 + 3))

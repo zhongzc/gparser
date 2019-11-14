@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
+
 class LocatedText:
     """
     包含待解析字符串，以及字符串解析到的位置
@@ -52,11 +53,11 @@ class LocatedText:
         """
         :return int: 返回目前解析到的列数，以 1 开始计数
         """
-        l = self.__str[0: self.__loc].rfind('\n')
-        if (l == -1):
+        loc = self.__str[0: self.__loc].rfind('\n')
+        if (loc == -1):
             return self.__loc + 1
         else:
-            return self.__loc - l
+            return self.__loc - loc
 
     def current_line(self) -> str:
         """

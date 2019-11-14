@@ -16,6 +16,9 @@ class Result:
     def __repr__(self):
         return 'Result({})'.format(', '.join(map(repr, self.__lst)))
 
+    def __eq__(self, other):
+        return self.__lst == other.__lst
+
     def get(self):
         for i in self:
             return i

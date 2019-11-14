@@ -66,7 +66,8 @@ class Parser:
         return inner
 
     def __add__(self, other):
-        return self.flatmap(lambda *x: other.flatmap(lambda *y: _trick_just(x + y)))
+        return self.flatmap(lambda *x: other.flatmap(
+            lambda *y: _trick_just(x + y)))
 
     def map(self, func):
         return self.flatmap(lambda *v: just(func(*v)))
@@ -278,7 +279,8 @@ def one_of(chrs: str) -> Parser:
     :param chrs: 所述的待解析字符串
     :return Parser: 解析所给字符其中之一的Parser
     """
-    return label(satisfy(lambda c: c in chrs), 'Excepted: one of ' + ','.join(chrs))
+    return label(satisfy(lambda c: c in chrs),
+                 'Excepted: one of ' + ','.join(chrs))
 
 
 def none_of(chrs: str) -> Parser:
@@ -287,7 +289,8 @@ def none_of(chrs: str) -> Parser:
     :param chrs: 所述的待排除字符串
     :return Parser: 解析所给字符以外字符的Parser
     """
-    return label(satisfy(lambda c: c not in chrs), 'Excepted: none of ' + ', '.join(chrs))
+    return label(satisfy(lambda c: c not in chrs),
+                 'Excepted: none of ' + ', '.join(chrs))
 
 
 def many(parser: Parser) -> Parser:
@@ -349,11 +352,14 @@ def token(parser: Parser) -> Parser:
 
 def chain_left(node: Parser, op: Parser) -> Parser:
     aux = (op + node).map(lambda fn, n: lambda x: fn(x, n))
-    return (node + many(aux)).map(lambda fst, nps: reduce((lambda x, cmb: cmb(x)), [fst] + nps))
+    return (node + many(aux)).map(lambda fst, nps:
+                                  reduce((lambda x, cmb: cmb(x)), [fst] + nps))
 
 
 def chain_right(node: Parser, op: Parser) -> Parser:
-    return node.flatmap(lambda l: (op + chain_right(node, op)).map(lambda fn, r: fn(l, r)) | just(l))
+    return node.flatmap(lambda l:
+                        (op + chain_right(node, op)).map(lambda fn, r:
+                                                         fn(l, r)) | just(l))
 
 
 def number() -> Parser:
