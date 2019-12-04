@@ -1,9 +1,9 @@
-check:
+check: FORCE
 	pycodestyle .
 	flake8 .
 
 
-test:
+test: FORCE
 	pytest -v --cov
 
 
@@ -17,3 +17,5 @@ clean:
 
 upload: test
 	python setup.py sdist && twine upload dist/*
+
+FORCE:

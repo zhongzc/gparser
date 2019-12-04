@@ -3,10 +3,9 @@
 
 __author__ = 'Gaufoo, zhongzc_arch@outlook.com'
 
-from gparser.parser import digit, char, number, string, alpha, space, spaces
-from gparser.parser import just, ParseError, satisfy, label, one_of, regex
-from gparser.parser import many, many1, skip, skip_many, sep_by, sep_by1
-from gparser.parser import none_of, maybe, between
+from gparser.parser import digit, char, number, string, alpha, space, spaces, \
+    just, ParseError, satisfy, label, one_of, regex, many, many1, skip, \
+    skip_many, sep_by, sep_by1, none_of, maybe, between
 from .utils import check_fail_msg, check_succ_cont, check_type
 
 
